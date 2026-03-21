@@ -7,7 +7,7 @@
  */
 
 const STOCKOUT_BUFFER = 1.20; // 20% increase if we ran out last time
-const ORDER_THRESHOLD = 0.1;
+const ORDER_THRESHOLD = 1;
 
 export async function generatePredictedOrder(targetDate = new Date()) {
     const inventory = await getCurrentInventory();
