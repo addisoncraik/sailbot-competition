@@ -1,3 +1,26 @@
+// main/algorithm.js
+const db = require("./database");
+
+/**
+ * These helper functions now talk DIRECTLY to the database 
+ * because this file runs in the Main process.
+ */
+async function getCurrentInventory() {
+    // Assuming your database.js has a function to get all items
+    // If not, use: return await db.all("SELECT item, qty FROM inventory");
+    return await db.getInventory(); 
+}
+
+async function getOrdersBetween(d1, d2) {
+    // Convert Dates to ISO strings or Timestamps for SQL comparison
+    return await db.getOrdersInRange(d1.toISOString(), d2.toISOString());
+}
+
+async function getWasteData(d1, d2) {
+    return await db.getWasteInRange(d1.toISOString(), d2.toISOString());
+}
+
+
 /**
  * algorithm.js
  * * Data Structures Expected:
@@ -9,7 +32,7 @@
 const STOCKOUT_BUFFER = 1.20; // 20% increase if we ran out last time
 const ORDER_THRESHOLD = 1;
 
-export async function generatePredictedOrder(targetDate = new Date()) {
+async function generatePredictedOrder(targetDate = new Date()) {
     const inventory = await getCurrentInventory();
     const results = [];
 
@@ -117,3 +140,6 @@ async function findHistoricalWindow(itemName, targetDate) {
     }
     return null; 
 }
+
+
+module.exports = { generatePredictedOrder };

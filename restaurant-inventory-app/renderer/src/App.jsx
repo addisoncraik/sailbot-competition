@@ -93,23 +93,37 @@ function App() {
     window.api.invoke("get-inventory").then(setItems);
   }, []);
 
-  /* ----------------------------- */
-  /* Nathan Prediction Placeholder */
-  /* ----------------------------- */
-  const predictedOrders = useMemo(() => {
-    return items.map((item) => {
-      const predictedNeeded = Math.max(item.quantity + 5, 10);
-      const suggestedOrder = Math.max(predictedNeeded - item.quantity, 0);
 
-      return {
-        id: item.id,
-        itemName: item.name,
-        suggestedOrder,
-        unit: "Units",
-        inStockValue: item.quantity ?? "Replace This With In Stock Value",
-      };
-    });
-  }, [items]);
+
+  /* ----------------------------- */
+  /* Nathan Prediction Integration */
+  /* ----------------------------- */
+  const [predictedOrders, setPredictedOrders] = useState([]);
+
+  useEffect(() => {
+    const fetchPrediction = async () => {
+      try {
+        // Call the bridge function we defined in preload
+        const results = await window.api.getAiPrediction(new Date());
+        
+        const formatted = results.map((res, index) => ({
+          id: `ai-pred-${index}`,
+          itemName: res.item,
+          suggestedOrder: res.predicted_order,
+          unit: "Units", // Default unit
+          inStockValue: res.current_qty,
+        }));
+        
+        setPredictedOrders(formatted);
+      } catch (err) {
+        console.error("AI Prediction failed:", err);
+      }
+    };
+
+    if (items.length > 0) {
+      fetchPrediction();
+    }
+  }, [items]); // Re-runs whenever inventory (items) changes
 
   /* ----------------------------- */
   /* Navigation Helpers            */

@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const db = require("./database"); // 👈 1. Import your database
+const { generatePredictedOrder } = require('./algorithm');
+
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -25,15 +27,9 @@ function createWindow() {
   });
 }
 
-ipcMain.handle("get-inventory", () => {
-  try {
-    // Fetch all items from the SQLite database
-    const items = db.prepare("SELECT * FROM inventory").all();
-    return items;
-  } catch (error) {
-    console.error("Database error:", error);
-    return [];
-  }
+ipcMain.handle('get-ai-prediction', async (event, targetDate) => {
+  // The algorithm runs here in Node.js
+  return await generatePredictedOrder(targetDate);
 });
 
 app.whenReady().then(createWindow);
