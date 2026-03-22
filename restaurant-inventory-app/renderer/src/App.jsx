@@ -12,7 +12,6 @@ function App() {
   /* ----------------------------- */
   /* Checkout Overview State       */
   /* ----------------------------- */
-  // Initialized as empty arrays to rely on real data/manual input
   const [checkoutItems, setCheckoutItems] = useState([]);
   const [manualCheckoutItems, setManualCheckoutItems] = useState([]);
 
@@ -22,7 +21,6 @@ function App() {
   const [checkoutForm, setCheckoutForm] = useState({
     itemName: "",
     quantity: "",
-    unit: "",
     inStockValue: "",
   });
 
@@ -32,7 +30,6 @@ function App() {
   const [wasteLog, setWasteLog] = useState({
     itemName: "",
     quantity: "",
-    unit: "Units",
     reason: "",
   });
 
@@ -44,7 +41,7 @@ function App() {
   }, []);
 
   /* ----------------------------- */
-  /* Nathan Prediction Integration */
+  /* Algorithm Prediction          */
   /* ----------------------------- */
   const [predictedOrders, setPredictedOrders] = useState([]);
 
@@ -57,7 +54,6 @@ function App() {
           id: `algo-pred-${index}`,
           itemName: res.item,
           suggestedOrder: Number(res.predicted_order).toFixed(2), 
-          unit: "Units",
           inStockValue: res.current_qty,
         }));
         
@@ -105,7 +101,6 @@ function App() {
         id: `algo-${entry.id}-${Date.now()}`,
         itemName: entry.itemName,
         quantity: entry.suggestedOrder,
-        unit: entry.unit || "Units",
         inStockValue: entry.inStockValue,
         source: "algo",
       }));
@@ -145,7 +140,7 @@ function App() {
         const updatedInventory = await window.api.invoke("get-inventory");
         setItems(updatedInventory);
         
-        setWasteLog({ itemName: "", quantity: "", unit: "Units", reason: "" });
+        setWasteLog({ itemName: "", quantity: "", reason: "" });
         goToDashboard();
       }
     } catch (err) {
@@ -174,22 +169,6 @@ function App() {
     }
   };
 
-  const increaseCheckoutQty = (id) => {
-    const updated = checkoutItems.map((item) =>
-      item.id === id ? { ...item, quantity: Number(item.quantity) + 1 } : item
-    );
-    syncManualItems(updated);
-  };
-
-  const decreaseCheckoutQty = (id) => {
-    const updated = checkoutItems.map((item) =>
-      item.id === id
-        ? { ...item, quantity: Math.max(1, Number(item.quantity) - 1) }
-        : item
-    );
-    syncManualItems(updated);
-  };
-
   const deleteCheckoutItem = (id) => {
     const updated = checkoutItems.filter((item) => item.id !== id);
     syncManualItems(updated);
@@ -199,7 +178,6 @@ function App() {
       setCheckoutForm({
         itemName: "",
         quantity: "",
-        unit: "",
         inStockValue: "",
       });
       setShowAddForm(false);
@@ -211,7 +189,6 @@ function App() {
     setCheckoutForm({
       itemName: item.itemName,
       quantity: item.quantity,
-      unit: item.unit,
       inStockValue: item.inStockValue,
     });
     setShowAddForm(true);
@@ -223,11 +200,10 @@ function App() {
     const cleanedItem = {
       itemName: checkoutForm.itemName.trim(),
       quantity: Number(checkoutForm.quantity),
-      unit: checkoutForm.unit,
       inStockValue: checkoutForm.inStockValue,
     };
 
-    if (!cleanedItem.itemName || !cleanedItem.unit || cleanedItem.quantity < 1) {
+    if (!cleanedItem.itemName || cleanedItem.quantity < 1) {
       return;
     }
 
@@ -251,7 +227,6 @@ function App() {
     setCheckoutForm({
       itemName: "",
       quantity: "",
-      unit: "",
       inStockValue: "",
     });
     setEditingId(null);
@@ -381,7 +356,6 @@ function App() {
                   setCheckoutForm({
                     itemName: "",
                     quantity: "",
-                    unit: "",
                     inStockValue: "",
                   });
                   setShowAddForm((prev) => !prev);
@@ -396,36 +370,16 @@ function App() {
                 className="pretty-form add-item-form"
                 onSubmit={submitCheckoutFormItem}
               >
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Item Name</label>
-                    <input
-                      type="text"
-                      name="itemName"
-                      value={checkoutForm.itemName}
-                      onChange={handleCheckoutFormChange}
-                      placeholder="Enter Item Name"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Unit</label>
-                    <select
-                      name="unit"
-                      value={checkoutForm.unit}
-                      onChange={handleCheckoutFormChange}
-                      required
-                    >
-                      <option value="" disabled>
-                        Select Unit
-                      </option>
-                      <option value="Units">Units</option>
-                      <option value="Kg">Kg</option>
-                      <option value="L">L</option>
-                      <option value="Boxes">Boxes</option>
-                    </select>
-                  </div>
+                <div className="form-group">
+                  <label>Item Name</label>
+                  <input
+                    type="text"
+                    name="itemName"
+                    value={checkoutForm.itemName}
+                    onChange={handleCheckoutFormChange}
+                    placeholder="Enter Item Name"
+                    required
+                  />
                 </div>
 
                 <div className="form-row">
@@ -465,7 +419,6 @@ function App() {
                       setCheckoutForm({
                         itemName: "",
                         quantity: "",
-                        unit: "",
                         inStockValue: "",
                       });
                     }}
@@ -505,14 +458,6 @@ function App() {
                     </div>
 
                     <div className="checkout-qty-column">
-                      <button
-                        type="button"
-                        className="qty-button"
-                        onClick={() => decreaseCheckoutQty(item.id)}
-                      >
-                        −
-                      </button>
-
                       <input
                         className="qty-box"
                         type="number"
@@ -528,16 +473,7 @@ function App() {
                           syncManualItems(updated);
                         }}
                       />
-
-                      <button
-                        type="button"
-                        className="qty-button"
-                        onClick={() => increaseCheckoutQty(item.id)}
-                      >
-                        +
-                      </button>
-
-                      <span className="checkout-unit">{item.unit}</span>
+                      <span className="checkout-unit">Units</span>
                     </div>
 
                     <div className="checkout-actions-column">
@@ -595,32 +531,16 @@ function App() {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Quantity</label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={wasteLog.quantity}
-                    onChange={handleWasteChange}
-                    placeholder="Enter Quantity"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Unit</label>
-                  <select
-                    name="unit"
-                    value={wasteLog.unit}
-                    onChange={handleWasteChange}
-                  >
-                    <option>Units</option>
-                    <option>Kg</option>
-                    <option>L</option>
-                    <option>Boxes</option>
-                  </select>
-                </div>
+              <div className="form-group">
+                <label>Quantity</label>
+                <input
+                  type="number"
+                  name="quantity"
+                  value={wasteLog.quantity}
+                  onChange={handleWasteChange}
+                  placeholder="Enter Quantity"
+                  required
+                />
               </div>
 
               <div className="form-group">
