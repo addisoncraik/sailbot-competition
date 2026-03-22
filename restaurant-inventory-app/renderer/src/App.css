@@ -9,6 +9,17 @@ body {
   color: #1f2937;
 }
 
+/* Remove default arrows from number inputs to prevent text squishing */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield; /* Fix for Firefox */
+}
+
 .app-shell {
   min-height: 100vh;
   padding: 24px;
@@ -240,6 +251,7 @@ body {
   font-size: 0.96rem;
   background: #fcfcfd;
   outline: none;
+  color: #111827;
 }
 
 .form-group input:focus,
@@ -314,13 +326,11 @@ textarea::placeholder {
   background: #fafafa;
 }
 
-/* Replace .checkout-item-card-ai with this: */
 .checkout-item-card-algo {
   background: #f3f0ff;
   border: 1px solid #d8ccff;
 }
 
-/* Replace .ai-badge with this: */
 .algo-badge {
   display: inline-flex;
   align-items: center;
@@ -387,6 +397,8 @@ textarea::placeholder {
   border: 1px solid #d1d5db;
   background: white;
   font-size: 0.95rem;
+  color: #111827;
+  padding: 0;
 }
 
 .checkout-unit {
