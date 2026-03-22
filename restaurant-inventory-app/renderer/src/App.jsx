@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 function App() {
@@ -7,64 +7,14 @@ function App() {
   /* ----------------------------- */
   const [items, setItems] = useState([]);
   const [page, setPage] = useState("dashboard");
-  const [aiCheckoutSession, setAiCheckoutSession] = useState(false);
+  const [algoCheckoutSession, setAlgoCheckoutSession] = useState(false);
 
   /* ----------------------------- */
   /* Checkout Overview State       */
   /* ----------------------------- */
-  const [checkoutItems, setCheckoutItems] = useState([
-    {
-      id: 1,
-      itemName: "Tomatoes",
-      quantity: 12,
-      unit: "Units",
-      inStockValue: "Replace This With In Stock Value",
-      source: "manual",
-    },
-    {
-      id: 2,
-      itemName: "Chicken Breast",
-      quantity: 8,
-      unit: "Kg",
-      inStockValue: "Replace This With In Stock Value",
-      source: "manual",
-    },
-    {
-      id: 3,
-      itemName: "Rice",
-      quantity: 4,
-      unit: "Boxes",
-      inStockValue: "Replace This With In Stock Value",
-      source: "manual",
-    },
-  ]);
-
-  const [manualCheckoutItems, setManualCheckoutItems] = useState([
-    {
-      id: 1,
-      itemName: "Tomatoes",
-      quantity: 12,
-      unit: "Units",
-      inStockValue: "Replace This With In Stock Value",
-      source: "manual",
-    },
-    {
-      id: 2,
-      itemName: "Chicken Breast",
-      quantity: 8,
-      unit: "Kg",
-      inStockValue: "Replace This With In Stock Value",
-      source: "manual",
-    },
-    {
-      id: 3,
-      itemName: "Rice",
-      quantity: 4,
-      unit: "Boxes",
-      inStockValue: "Replace This With In Stock Value",
-      source: "manual",
-    },
-  ]);
+  // Initialized as empty arrays to rely on real data/manual input
+  const [checkoutItems, setCheckoutItems] = useState([]);
+  const [manualCheckoutItems, setManualCheckoutItems] = useState([]);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -87,13 +37,11 @@ function App() {
   });
 
   /* ----------------------------- */
-  /* Load Inventory From Tristan   */
+  /* Load Inventory From Database  */
   /* ----------------------------- */
   useEffect(() => {
     window.api.invoke("get-inventory").then(setItems);
   }, []);
-
-
 
   /* ----------------------------- */
   /* Nathan Prediction Integration */
@@ -103,35 +51,34 @@ function App() {
   useEffect(() => {
     const fetchPrediction = async () => {
       try {
-        // Call the bridge function we defined in preload
-        const results = await window.api.getAiPrediction(new Date());
+        const results = await window.api.getPrediction(new Date());
         
         const formatted = results.map((res, index) => ({
-          id: `ai-pred-${index}`,
+          id: `algo-pred-${index}`,
           itemName: res.item,
-          suggestedOrder: res.predicted_order,
-          unit: "Units", // Default unit
+          suggestedOrder: Number(res.predicted_order).toFixed(2), 
+          unit: "Units",
           inStockValue: res.current_qty,
         }));
         
         setPredictedOrders(formatted);
       } catch (err) {
-        console.error("AI Prediction failed:", err);
+        console.error("Algorithm Prediction failed:", err);
       }
     };
 
     if (items.length > 0) {
       fetchPrediction();
     }
-  }, [items]); // Re-runs whenever inventory (items) changes
+  }, [items]); 
 
   /* ----------------------------- */
   /* Navigation Helpers            */
   /* ----------------------------- */
   const goToDashboard = () => {
-    if (aiCheckoutSession) {
+    if (algoCheckoutSession) {
       setCheckoutItems(manualCheckoutItems);
-      setAiCheckoutSession(false);
+      setAlgoCheckoutSession(false);
       setShowAddForm(false);
       setEditingId(null);
     }
@@ -139,9 +86,9 @@ function App() {
   };
 
   const goToCheckout = () => {
-    if (aiCheckoutSession) {
+    if (algoCheckoutSession) {
       setCheckoutItems(manualCheckoutItems);
-      setAiCheckoutSession(false);
+      setAlgoCheckoutSession(false);
       setShowAddForm(false);
       setEditingId(null);
     }
@@ -149,22 +96,22 @@ function App() {
   };
 
   /* ----------------------------- */
-  /* AI Prediction -> Checkout     */
+  /* Algorithm Prediction -> Checkout */
   /* ----------------------------- */
   const openPredictedCheckout = () => {
-    const aiItems = predictedOrders
+    const algoItems = predictedOrders
       .filter((entry) => entry.suggestedOrder > 0)
       .map((entry) => ({
-        id: `ai-${entry.id}-${Date.now()}`,
+        id: `algo-${entry.id}-${Date.now()}`,
         itemName: entry.itemName,
         quantity: entry.suggestedOrder,
         unit: entry.unit || "Units",
         inStockValue: entry.inStockValue,
-        source: "ai",
+        source: "algo",
       }));
 
-    setCheckoutItems([...manualCheckoutItems, ...aiItems]);
-    setAiCheckoutSession(true);
+    setCheckoutItems([...manualCheckoutItems, ...algoItems]);
+    setAlgoCheckoutSession(true);
     setShowAddForm(false);
     setEditingId(null);
     setPage("checkout");
@@ -181,26 +128,29 @@ function App() {
     }));
   };
 
-  const handleWasteSubmit = (e) => {
+  const handleWasteSubmit = async (e) => {
     e.preventDefault();
 
     const payload = {
-      ...wasteLog,
-      quantity: Number(wasteLog.quantity),
-      sendTo: "Tristan",
-      type: "Food Waste Log",
+      date: new Date().toISOString().split('T')[0], 
+      items: [{
+        item: wasteLog.itemName,
+        qty: Number(wasteLog.quantity)
+      }]
     };
 
-    console.log("Food Waste Sent To Tristan:", payload);
-
-    setWasteLog({
-      itemName: "",
-      quantity: "",
-      unit: "Units",
-      reason: "",
-    });
-
-    goToDashboard();
+    try {
+      const result = await window.api.invoke("record-waste", payload);
+      if (result.success) {
+        const updatedInventory = await window.api.invoke("get-inventory");
+        setItems(updatedInventory);
+        
+        setWasteLog({ itemName: "", quantity: "", unit: "Units", reason: "" });
+        goToDashboard();
+      }
+    } catch (err) {
+      alert("Error logging waste: " + err.message);
+    }
   };
 
   /* ----------------------------- */
@@ -217,8 +167,8 @@ function App() {
   const syncManualItems = (updatedItems) => {
     setCheckoutItems(updatedItems);
 
-    if (aiCheckoutSession) {
-      setManualCheckoutItems(updatedItems.filter((item) => item.source !== "ai"));
+    if (algoCheckoutSession) {
+      setManualCheckoutItems(updatedItems.filter((item) => item.source !== "algo"));
     } else {
       setManualCheckoutItems(updatedItems);
     }
@@ -226,7 +176,7 @@ function App() {
 
   const increaseCheckoutQty = (id) => {
     const updated = checkoutItems.map((item) =>
-      item.id === id ? { ...item, quantity: item.quantity + 1 } : item
+      item.id === id ? { ...item, quantity: Number(item.quantity) + 1 } : item
     );
     syncManualItems(updated);
   };
@@ -234,7 +184,7 @@ function App() {
   const decreaseCheckoutQty = (id) => {
     const updated = checkoutItems.map((item) =>
       item.id === id
-        ? { ...item, quantity: Math.max(1, item.quantity - 1) }
+        ? { ...item, quantity: Math.max(1, Number(item.quantity) - 1) }
         : item
     );
     syncManualItems(updated);
@@ -308,22 +258,35 @@ function App() {
     setShowAddForm(false);
   };
 
-  const submitCheckout = () => {
+  const submitCheckout = async () => {
     const payload = {
-      type: aiCheckoutSession ? "AI Checkout Overview" : "Checkout Overview",
-      sendTo: "Tristan",
-      items: checkoutItems,
+      date: new Date().toISOString().split('T')[0],
+      items: checkoutItems.map(item => ({
+        item: item.itemName,
+        qtyNew: Number(item.quantity),
+        qtyInStock: Number(item.inStockValue) || 0
+      }))
     };
 
-    console.log("Checkout Submitted To Tristan:", payload);
-    goToDashboard();
+    try {
+      const result = await window.api.invoke("add-order", payload);
+      if (result.success) {
+        const updatedInventory = await window.api.invoke("get-inventory");
+        setItems(updatedInventory);
+        
+        setCheckoutItems([]);
+        setManualCheckoutItems([]);
+        setAlgoCheckoutSession(false);
+        goToDashboard();
+      }
+    } catch (err) {
+      alert("Error submitting order: " + err.message);
+    }
   };
 
   return (
     <div className="app-shell">
-      {/* ----------------------------- */}
-      {/* Header                        */}
-      {/* ----------------------------- */}
+      {/* Header */}
       <header className="app-header">
         <div className="header-text">
           <h1>SoupPLY</h1>
@@ -331,9 +294,7 @@ function App() {
         </div>
       </header>
 
-      {/* ----------------------------- */}
-      {/* Top Navigation Tabs           */}
-      {/* ----------------------------- */}
+      {/* Top Navigation Tabs */}
       <div className="header-buttons">
         <button
           className={`nav-button ${page === "dashboard" ? "active" : ""}`}
@@ -344,7 +305,7 @@ function App() {
 
         <button
           className={`nav-button ${
-            page === "checkout" && !aiCheckoutSession ? "active" : ""
+            page === "checkout" && !algoCheckoutSession ? "active" : ""
           }`}
           onClick={goToCheckout}
         >
@@ -354,9 +315,9 @@ function App() {
         <button
           className={`nav-button ${page === "waste" ? "active" : ""}`}
           onClick={() => {
-            if (aiCheckoutSession) {
+            if (algoCheckoutSession) {
               setCheckoutItems(manualCheckoutItems);
-              setAiCheckoutSession(false);
+              setAlgoCheckoutSession(false);
             }
             setPage("waste");
           }}
@@ -366,20 +327,18 @@ function App() {
       </div>
 
       <main className="dashboard-grid">
-        {/* ----------------------------- */}
-        {/* Dashboard Tab                */}
-        {/* ----------------------------- */}
+        {/* Dashboard Tab */}
         {page === "dashboard" && (
           <section className="panel panel-large">
             <div className="panel-header">
               <h2>Predicted Orders</h2>
-              <span>From Nathan Algorithm</span>
+              <span>From Nathan's Algorithm</span>
             </div>
 
             <div className="prediction-list">
               {predictedOrders.length === 0 ? (
                 <div className="empty-state">
-                  Nathan’s Prediction List Will Appear Here.
+                  Nathan’s Prediction List Will Appear Here Once Data Is Available.
                 </div>
               ) : (
                 predictedOrders.map((entry) => (
@@ -399,25 +358,20 @@ function App() {
           </section>
         )}
 
-        {/* ----------------------------- */}
-        {/* Checkout Overview Tab        */}
-        {/* ----------------------------- */}
+        {/* Checkout Overview Tab */}
         {page === "checkout" && (
           <section className="panel page-panel">
             <div className="page-top">
               <div>
-                <h2>{aiCheckoutSession ? "AI Checkout Overview" : "Checkout Overview"}</h2>
+                <h2>{algoCheckoutSession ? "Predicted Checkout Overview" : "Checkout Overview"}</h2>
                 <p className="page-subtext">
-                  {aiCheckoutSession
-                    ? "AI Predicted Items Are Highlighted Below. You Can Still Edit, Delete, And Add Manual Items."
+                  {algoCheckoutSession
+                    ? "Algorithm Predicted Items Are Highlighted Below. You Can Still Edit, Delete, And Add Manual Items."
                     : "Review, Edit, And Submit Items To Tristan"}
                 </p>
               </div>
             </div>
 
-            {/* ----------------------------- */}
-            {/* Checkout Top Actions          */}
-            {/* ----------------------------- */}
             <div className="checkout-top-row">
               <button
                 type="button"
@@ -437,9 +391,6 @@ function App() {
               </button>
             </div>
 
-            {/* ----------------------------- */}
-            {/* Add / Edit Checkout Form      */}
-            {/* ----------------------------- */}
             {showAddForm && (
               <form
                 className="pretty-form add-item-form"
@@ -528,9 +479,6 @@ function App() {
               </form>
             )}
 
-            {/* ----------------------------- */}
-            {/* Checkout Item List            */}
-            {/* ----------------------------- */}
             <div className="checkout-list">
               {checkoutItems.length === 0 ? (
                 <div className="empty-state">No Items In Checkout Yet.</div>
@@ -538,7 +486,7 @@ function App() {
                 checkoutItems.map((item) => (
                   <div
                     className={`checkout-item-card ${
-                      item.source === "ai" ? "checkout-item-card-ai" : ""
+                      item.source === "algo" ? "checkout-item-card-algo" : ""
                     }`}
                     key={item.id}
                   >
@@ -546,12 +494,12 @@ function App() {
                       <div className="checkout-name-block">
                         <div className="checkout-item-name-row">
                           <div className="checkout-item-name">{item.itemName}</div>
-                          {item.source === "ai" && (
-                            <span className="ai-badge">AI</span>
+                          {item.source === "algo" && (
+                            <span className="algo-badge">Predicted</span>
                           )}
                         </div>
                         <div className="checkout-stock-text">
-                          In Stock: {item.inStockValue}
+                          In Stock: {item.inStockValue || 0}
                         </div>
                       </div>
                     </div>
@@ -614,9 +562,6 @@ function App() {
               )}
             </div>
 
-            {/* ----------------------------- */}
-            {/* Checkout Submit Button        */}
-            {/* ----------------------------- */}
             <div className="center-button submit-checkout-row">
               <button className="primary-button" onClick={submitCheckout}>
                 Submit Checkout
@@ -625,9 +570,7 @@ function App() {
           </section>
         )}
 
-        {/* ----------------------------- */}
-        {/* Log Food Waste Tab           */}
-        {/* ----------------------------- */}
+        {/* Log Food Waste Tab */}
         {page === "waste" && (
           <section className="panel page-panel">
             <div className="page-top">

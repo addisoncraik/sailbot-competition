@@ -2,22 +2,36 @@
 const db = require("./database");
 
 /**
- * These helper functions now talk DIRECTLY to the database 
- * because this file runs in the Main process.
+ * Helper functions querying your SQLite database directly
  */
 async function getCurrentInventory() {
-    // Assuming your database.js has a function to get all items
-    // If not, use: return await db.all("SELECT item, qty FROM inventory");
-    return await db.getInventory(); 
+  // Returns [{item: "Tomatoes", qty: 10}, ...]
+  return db.prepare("SELECT item, qty FROM inventory").all();
 }
 
 async function getOrdersBetween(d1, d2) {
-    // Convert Dates to ISO strings or Timestamps for SQL comparison
-    return await db.getOrdersInRange(d1.toISOString(), d2.toISOString());
+  // Convert to strings if they are Date objects
+  const start = d1 instanceof Date ? d1.toISOString() : d1;
+  const end = d2 instanceof Date ? d2.toISOString() : d2;
+
+  const rows = db.prepare(`
+    SELECT date, item, qtyInStock as qty_existing, qtyNew as qty_ordered 
+    FROM orders 
+    WHERE date >= ? AND date <= ?
+  `).all(start, end);
+  return rows;
 }
 
 async function getWasteData(d1, d2) {
-    return await db.getWasteInRange(d1.toISOString(), d2.toISOString());
+  const start = d1 instanceof Date ? d1.toISOString() : d1;
+  const end = d2 instanceof Date ? d2.toISOString() : d2;
+
+  const rows = db.prepare(`
+    SELECT date, item, qty as qty_waste 
+    FROM waste 
+    WHERE date >= ? AND date <= ?
+  `).all(start, end);
+  return rows;
 }
 
 
@@ -30,7 +44,7 @@ async function getWasteData(d1, d2) {
  */
 
 const STOCKOUT_BUFFER = 1.20; // 20% increase if we ran out last time
-const ORDER_THRESHOLD = 1;
+const ORDER_THRESHOLD = 0.1;
 
 async function generatePredictedOrder(targetDate = new Date()) {
     const inventory = await getCurrentInventory();
@@ -44,12 +58,6 @@ async function generatePredictedOrder(targetDate = new Date()) {
         const history = await findHistoricalWindow(itemName, targetDate);
 
         if (!history) {
-            results.push({
-                item: itemName,
-                current_qty: currentQty,
-                predicted_order: 0,
-                note: "Insufficient history"
-            });
             continue;
         }
 
@@ -69,13 +77,15 @@ async function generatePredictedOrder(targetDate = new Date()) {
             .filter(w => w.item === itemName)
             .reduce((sum, w) => sum + w.qty_waste, 0);
 
-        const quantityNeeded = totalUsed - itemWaste;
+        let quantityNeeded = totalUsed - itemWaste;
 
         if (currentQty == 0) {
             quantityNeeded *= STOCKOUT_BUFFER; // If we hit zero, increase the needed quantity by the buffer
         }
 
-        const orderAmount = quantityNeeded - currentQty;
+        let orderAmount = quantityNeeded - currentQty;
+
+        console.log(`DEBUG 2: For item "${itemName}", orderAmount: ${orderAmount}`); // <--- ADD THIS
 
         if (orderAmount > ORDER_THRESHOLD) {
             results.push({

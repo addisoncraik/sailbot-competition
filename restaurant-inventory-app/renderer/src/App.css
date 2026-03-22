@@ -314,9 +314,23 @@ textarea::placeholder {
   background: #fafafa;
 }
 
-.checkout-item-card-ai {
+/* Replace .checkout-item-card-ai with this: */
+.checkout-item-card-algo {
   background: #f3f0ff;
   border: 1px solid #d8ccff;
+}
+
+/* Replace .ai-badge with this: */
+.algo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #7c3aed;
+  color: white;
 }
 
 .checkout-name-column {
@@ -345,18 +359,6 @@ textarea::placeholder {
 .checkout-stock-text {
   font-size: 0.88rem;
   color: #6b7280;
-}
-
-.ai-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  background: #7c3aed;
-  color: white;
 }
 
 .checkout-qty-column {
